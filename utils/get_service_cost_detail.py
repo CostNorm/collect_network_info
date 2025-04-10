@@ -30,7 +30,13 @@ def get_service_operation_cost():
             cost_data.append((service_name, operation, cost))
 
     df = pd.DataFrame(cost_data, columns=["Service", "Operation", "Cost"])
-    print("AWS 서비스별 세부 기능 비용:")
+    # 서비스와 Operation별 총 비용 계산 및 소수점 둘째자리로 반올림
+    df = df.groupby(["Service", "Operation"])["Cost"].sum().reset_index()
+    df["Cost"] = df["Cost"].round(2)
+    # Cost 기준으로 내림차순 정렬하고 상위 20개만 선택
+    df = df.sort_values("Cost", ascending=False).head(20)
+
+    print("AWS 서비스별 세부 기능 비용 (상위 20개):")
     print(df)
 
 
