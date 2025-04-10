@@ -121,3 +121,13 @@ dmypy.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+*.csv
+*.sh
+*.zip
+*.json
+*.txt
+*.log
+*.yaml
+*.yml
+*.md
+*.html
