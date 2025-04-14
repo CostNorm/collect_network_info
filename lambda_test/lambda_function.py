@@ -6,8 +6,6 @@ import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs
 import traceback
-
-# 생성된 유틸리티 파일 임포트
 from vpc_endpoint_utils import (
     TARGET_SERVICES,
     ENDPOINT_MISSING_THRESHOLD,
@@ -21,11 +19,6 @@ from vpc_endpoint_utils import (
     check_existing_endpoint,
 )
 
-# --- Lambda 환경 설정 ---
-TARGET_SERVICES = {
-    "s3.amazonaws.com": "S3",
-    "ecr.amazonaws.com": "ECR",
-}
 SELF_FUNCTION_NAME = "check_vpc_endpoint_presence"
 lambda_client = boto3.client("lambda")
 
@@ -150,16 +143,14 @@ def lookup_instance_events(region, instance_id, days=None, hours=None, max_resul
             except:
                 time_formatted = event_time_str
 
-            # VPC 엔드포인트 사용 여부 포함하여 출력 (이모지 사용)
             endpoint_usage = rec.get("UsedEndpoint", "N/A")
-            endpoint_emoji = "✅" if endpoint_usage == "Yes" else "❌"  # 이모지 결정
-            endpoint_status = f"Endpoint 사용 여부: {endpoint_emoji}"  # 새로운 포맷
+            endpoint_emoji = "✅" if endpoint_usage == "Yes" else "❌"
+            endpoint_status = f"Endpoint 사용 여부: {endpoint_emoji}"
             result_text += f"- `{time_formatted}`: `{rec.get('EventName', 'N/A')}` ({endpoint_status}, User: `{rec.get('User', 'N/A')}`, Service: `{rec.get('Source', 'N/A')}`)\n"
 
         return result_text
 
     except client.exceptions.InvalidTimeRangeException:
-        # 오류 메시지도 시간/일 단위 반영
         return f"오류: CloudTrail 조회 기간(최대 90일)이 잘못되었습니다. ({time_value}{time_unit})"
     except Exception as e:
         print(f"CloudTrail 조회/처리 중 오류 발생: {e}")
@@ -170,8 +161,6 @@ def lookup_instance_events(region, instance_id, days=None, hours=None, max_resul
 def send_slack_message(response_url, text=None, blocks=None, replace_original=False):
     payload = {"response_type": "in_channel", "replace_original": replace_original}
     if text:
-        # if len(text) > MAX_SLACK_MESSAGE_LENGTH:
-        #     text = text[: MAX_SLACK_MESSAGE_LENGTH - 20] + "... (메시지 너무 김)"
         payload["text"] = text
     if blocks:
         payload["blocks"] = blocks
@@ -195,7 +184,7 @@ def lambda_handler(event, context):
     print("Lambda 실행 시작")
     print(f"event: {event}")
 
-    # Case 2: 비동기 Lambda 호출 (내부 작업 단계) - 먼저 확인
+    # Case 1: 비동기 Lambda 호출 (내부 작업 단계) - 먼저 확인
     if "action" in event:
         action = event.get("action")
         response_url = event.get("response_url")
@@ -205,13 +194,11 @@ def lambda_handler(event, context):
 
         # 비동기 호출 필수 파라미터 체크
         required_async_keys = ["action", "response_url", "instance_id", "region"]
-        # 'execute_creation' 은 analysis_result 불필요, 'propose_creation'은 필요
         if action == "propose_creation" and "analysis_result" not in event:
             required_async_keys.append("analysis_result")
         elif action == "execute_creation" and not all(
             k in event for k in ["service", "vpc_id", "endpoint_type"]
         ):
-            # execute_creation에 필요한 추가 키 확인
             required_async_keys.extend(["service", "vpc_id", "endpoint_type"])
 
         # 누락된 키 확인 개선
@@ -221,13 +208,12 @@ def lambda_handler(event, context):
                 f"오류: 비동기 호출({action}) 필수 정보 누락: {', '.join(missing_keys)}"
             )
             print(f"{error_msg}. 수신 데이터: {event}")
-            # response_url 이 있다면 오류 전송 시도
             if response_url:
                 try:
                     send_slack_message(
                         response_url, text=f"❌ {error_msg}", replace_original=True
                     )
-                except Exception:  # response_url 전송 실패는 무시
+                except Exception:
                     pass
             return {
                 "statusCode": 400,
@@ -237,11 +223,8 @@ def lambda_handler(event, context):
         # --- 비동기 액션 처리 ---
         try:
             if action == "analyze_traffic":
-                # ... analyze_traffic 로직 ...
                 days = event.get("days")
                 hours = event.get("hours")
-                # CloudTrail 이벤트 조회 (유틸리티 함수 사용)
-                # send_slack_message(...) # 시작 메시지는 초기 요청에서 보냄
                 events_list = lookup_service_events_and_filter_by_instance(
                     region, instance_id, days=days, hours=hours
                 )
@@ -266,11 +249,10 @@ def lambda_handler(event, context):
                         replace_original=True,  # 초기 메시지 대체
                     )
                 else:
-                    # 다음 단계 호출 (생성 제안)
                     send_slack_message(
                         response_url,
                         text="🔍 엔드포인트 생성 필요 가능성 발견. 자동 리소스 선택 및 생성 제안을 준비합니다...",
-                        replace_original=True,  # 초기 메시지 대체
+                        replace_original=True,
                     )
                     lambda_payload = {
                         "action": "propose_creation",
@@ -287,7 +269,6 @@ def lambda_handler(event, context):
                     print(f"다음 단계(propose_creation) 호출: {lambda_payload}")
 
             elif action == "propose_creation":
-                # ... propose_creation 로직 ...
                 analysis_result = event.get("analysis_result")
 
                 ec2_client = get_ec2_client(region)
@@ -519,7 +500,6 @@ def lambda_handler(event, context):
                     )
 
             elif action == "execute_creation":
-                # ... execute_creation 로직 ...
                 service = event.get("service")
                 vpc_id = event.get("vpc_id")
                 endpoint_type = event.get("endpoint_type")
@@ -641,7 +621,7 @@ def lambda_handler(event, context):
 
         return {"statusCode": 200, "body": f"Async action {action} completed."}
 
-    # Case 1 & 3: Slack HTTP POST 요청 (Lambda Function URL)
+    # Case 2 & 3: Slack HTTP POST 요청 (Lambda Function URL)
     elif (
         event.get("requestContext", {}).get("http", {}).get("method") == "POST"
         and "body" in event
