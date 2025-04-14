@@ -4,6 +4,9 @@ import time
 import random
 import string
 from datetime import datetime, timedelta
+import dotenv
+
+dotenv.load_dotenv("../.env")
 
 
 def generate_random_string(length=8):

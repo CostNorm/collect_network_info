@@ -2,6 +2,9 @@ import boto3
 import time
 from datetime import datetime, timedelta
 import os
+import dotenv
+
+dotenv.load_dotenv("../.env")
 
 
 def run_s3_command(instance_id, bucket_name, duration_minutes=10, interval_seconds=30):
@@ -104,6 +107,7 @@ def run_s3_command(instance_id, bucket_name, duration_minutes=10, interval_secon
 
 if __name__ == "__main__":
     INSTANCE_ID = os.getenv("INSTANCE_ID")
+    print(f"INSTANCE_ID: {INSTANCE_ID}")
     BUCKET_NAME = os.getenv("BUCKET_NAME")
     run_s3_command(
         instance_id=INSTANCE_ID,
