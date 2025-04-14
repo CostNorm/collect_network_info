@@ -193,13 +193,13 @@ def lookup_service_events_and_filter_by_instance(
         # 인스턴스 ID 필터링 모드가 아닐 때만 CSV 저장
         if not target_instance_id:
             df.to_csv(LATEST_CSV, index=False)
-            print(f"✅ 이번 실행 결과 저장 완료: {LATEST_CSV}")
-            if os.path.exists(CUMULATIVE_CSV):
-                df.to_csv(CUMULATIVE_CSV, mode="a", index=False, header=False)
-                print(f"📎 누적 CSV에 추가 완료: {CUMULATIVE_CSV}")
-            else:
-                df.to_csv(CUMULATIVE_CSV, index=False)
-                print(f"📌 누적 CSV 새로 생성 완료: {CUMULATIVE_CSV}")
+        print(f"✅ 이번 실행 결과 저장 완료: {LATEST_CSV}")
+        if os.path.exists(CUMULATIVE_CSV):
+            df.to_csv(CUMULATIVE_CSV, mode="a", index=False, header=False)
+            print(f"📎 누적 CSV에 추가 완료: {CUMULATIVE_CSV}")
+        else:
+            df.to_csv(CUMULATIVE_CSV, index=False)
+            print(f"📌 누적 CSV 새로 생성 완료: {CUMULATIVE_CSV}")
 
         return df
 
@@ -557,9 +557,9 @@ def create_vpc_endpoint_interactive(service, region, count, reference_instance_i
 
     if not vpc_id:
         vpc_id = prompt_for_vpc(ec2_client)
-        if not vpc_id:
-            print("VPC 선택 실패. 엔드포인트 생성을 중단합니다.")
-            return
+    if not vpc_id:
+        print("VPC 선택 실패. 엔드포인트 생성을 중단합니다.")
+        return
 
     # 2. 서비스 타입 결정 및 기존 엔드포인트 확인
     endpoint_type = None
@@ -637,9 +637,9 @@ def create_vpc_endpoint_interactive(service, region, count, reference_instance_i
 
             if not auto_filled_sg:  # 참조 인스턴스에서 보안그룹 가져오지 못한 경우
                 security_group_ids = prompt_for_security_groups(ec2_client, vpc_id)
-                if not security_group_ids:
-                    print("보안 그룹 선택 실패. 엔드포인트 생성을 중단합니다.")
-                    return
+            if not security_group_ids:
+                print("보안 그룹 선택 실패. 엔드포인트 생성을 중단합니다.")
+                return
             creation_params["SecurityGroupIds"] = security_group_ids
             creation_params["PrivateDnsEnabled"] = True
 
@@ -793,16 +793,16 @@ def main():
             f"\n--- 리전 '{default_region}' 전체 트래픽 기반 VPC 엔드포인트 사용 현황 분석 ---"
         )
         potential_missing = analyze_endpoint_usage(general_events_df)
-        if not potential_missing:
-            print("분석 결과, VPC 엔드포인트 생성이 필요한 경우가 감지되지 않았습니다.")
-            sys.exit(0)
-        print("\n--- VPC 엔드포인트 생성 제안 ---")
-        for (service, region), count in potential_missing.items():
-            create_vpc_endpoint_interactive(
-                service, region, count, reference_instance_id=ref_id_for_creation
-            )
-            print("-" * 40)
-        print("\n일반 분석 및 제안 프로세스가 완료되었습니다.")
+    if not potential_missing:
+        print("분석 결과, VPC 엔드포인트 생성이 필요한 경우가 감지되지 않았습니다.")
+        sys.exit(0)
+    print("\n--- VPC 엔드포인트 생성 제안 ---")
+    for (service, region), count in potential_missing.items():
+        create_vpc_endpoint_interactive(
+            service, region, count, reference_instance_id=ref_id_for_creation
+        )
+    print("-" * 40)
+    print("\n일반 분석 및 제안 프로세스가 완료되었습니다.")
 
 
 if __name__ == "__main__":
